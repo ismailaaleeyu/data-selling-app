@@ -1,57 +1,74 @@
 const axios = require('axios');
+const walletService = require('./walletService');
 
 class PaymentService {
-  static async initializePayment({ email, amount, reference }) {
-    const amountInKobo = Math.round(Number(amount) * 100);
+  /**
+   * Initialize Paystack Payment
+   */
+  async initializePayment(userId, email, amount) {
+    try {
+      const response = await axios.post(
+        'https://api.paystack.co/transaction/initialize',
+        {
+          email,
+          amount: Math.round(amount * 100), // Convert Naira to Kobo
+          callback_url: process.env.FRONTEND_URL,
+          metadata: { userId }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-    const response = await axios.post(
-      'https://api.paystack.co/transaction/initialize',
-      {
-        email,
-        amount: amountInKobo,
-        reference,
-        currency: 'NGN',
-        callback_url: 'http://localhost:3000/?payment=success',
-        metadata: {
-          custom_fields: [
-            {
-              display_name: 'Payment Type',
-              variable_name: 'payment_type',
-              value: 'Wallet Funding',
-            },
-          ],
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json',
-        },
+      return response.data;
+    } catch (error) {
+      console.error('Paystack initialization error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to initialize payment');
+    }
+  }
+
+  /**
+   * Verify Paystack Payment & Credit Wallet
+   */
+  async verifyPayment(reference, userId) {
+    try {
+      const response = await axios.get(
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+          }
+        }
+      );
+
+      const data = response.data;
+
+      if (!data.status || data.data.status !== 'success') {
+        return {
+          success: false,
+          message: data.message || 'Payment verification failed'
+        };
       }
-    );
 
-    return response.data;
+      const amountInNaira = data.data.amount / 100; // Convert Kobo back to Naira
+
+      // Credit user wallet
+      const wallet = await walletService.addFunds(userId, amountInNaira, reference);
+
+      return {
+        success: true,
+        amount: amountInNaira,
+        balance: wallet.balance,
+        message: 'Payment verified and wallet funded successfully'
+      };
+    } catch (error) {
+      console.error('Paystack verification error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to verify payment');
+    }
   }
-// backend/services/paymentService.js
-async function verifyPayment(reference, userId) {
-  // 1. Call Paystack API to verify reference status
-  const paystackData = await verifyWithPaystack(reference);
-
-  if (paystackData.status && paystackData.data.status === 'success') {
-    const amountInNaira = paystackData.data.amount / 100;
-
-    // 2. Add funds directly to wallet using walletService
-    const updatedWallet = await walletService.addFunds(userId, amountInNaira, reference);
-
-    return {
-      success: true,
-      amount: amountInNaira,
-      balance: updatedWallet.balance
-    };
-  }
-
-  return { success: false, message: 'Payment verification failed' };
 }
-  
 
-module.exports = PaymentService;
+module.exports = new PaymentService();
