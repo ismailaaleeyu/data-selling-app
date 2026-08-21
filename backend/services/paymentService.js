@@ -56,7 +56,6 @@ class PaymentService {
       const amountInNaira = data.data.amount / 100; // Convert Kobo back to Naira
 
       // Credit user wallet
-// Credit user wallet
 const wallet = await walletService.creditWallet(
   userId,
   amountInNaira,
@@ -64,17 +63,14 @@ const wallet = await walletService.creditWallet(
   reference
 );
 
+const walletDetails = await walletService.getWalletDetails(userId);
+
 return {
   success: true,
   amount: amountInNaira,
-  balance: wallet.balance,
-  message: 'Payment verified and wallet funded successfully'
+  balance: walletDetails.balance,
+  alreadyProcessed: wallet.alreadyProcessed || false,
+  message: wallet.message || 'Payment verified and wallet funded successfully'
 };
-    } catch (error) {
-      console.error('Paystack verification error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'Failed to verify payment');
-    }
-  }
-}
 
 module.exports = new PaymentService();
