@@ -32,20 +32,26 @@ class PaymentService {
 
     return response.data;
   }
+// backend/services/paymentService.js
+async function verifyPayment(reference, userId) {
+  // 1. Call Paystack API to verify reference status
+  const paystackData = await verifyWithPaystack(reference);
 
-  static async verifyPayment(reference) {
-    const response = await axios.get(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+  if (paystackData.status && paystackData.data.status === 'success') {
+    const amountInNaira = paystackData.data.amount / 100;
 
-    return response.data;
+    // 2. Add funds directly to wallet using walletService
+    const updatedWallet = await walletService.addFunds(userId, amountInNaira, reference);
+
+    return {
+      success: true,
+      amount: amountInNaira,
+      balance: updatedWallet.balance
+    };
   }
+
+  return { success: false, message: 'Payment verification failed' };
 }
+  
 
 module.exports = PaymentService;
