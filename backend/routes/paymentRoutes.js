@@ -1,29 +1,13 @@
+// backend/routes/paymentRoutes.js
 const express = require('express');
-
-const PaymentController = require('../controllers/paymentController');
-
-const authMiddleware = require('../middleware/auth');
-
 const router = express.Router();
+const paymentController = require('../controllers/paymentController');
+const { authMiddleware } = require('../middleware/auth'); // Adjust auth middleware path/name if different
 
-// Initialize Paystack payment
-router.post(
-  '/initialize',
-  authMiddleware,
-  PaymentController.initializePayment
-);
+// POST /api/payment/initialize
+router.post('/initialize', authMiddleware, paymentController.initializePayment);
 
-// Verify Paystack payment
-router.get(
-  '/verify/:reference',
-  authMiddleware,
-  PaymentController.verifyPayment
-);
-
-// Paystack webhook
-router.post(
-  '/webhook',
-  PaymentController.handleWebhook
-);
+// GET /api/payment/verify/:reference
+router.get('/verify/:reference', authMiddleware, paymentController.verifyPayment);
 
 module.exports = router;
