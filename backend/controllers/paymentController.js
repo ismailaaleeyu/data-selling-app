@@ -17,11 +17,9 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    // 1. Get email directly from auth middleware or database
+    // Retrieve email from user object or database
     let email = req.user.email;
-
     if (!email) {
-      // Database fallback if req.user only contains ID
       const [users] = await db.query('SELECT email FROM users WHERE id = ?', [userId]);
       if (users && users.length > 0) {
         email = users[0].email;
@@ -35,7 +33,6 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    // 2. Initialize with Paystack service
     const result = await paymentService.initializePayment(userId, email, amount);
 
     return res.json({
