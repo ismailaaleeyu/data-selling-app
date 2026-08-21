@@ -627,65 +627,63 @@ window.addEventListener('click', (event) => {
 async function handlePaymentCallback() {
   const params = new URLSearchParams(window.location.search);
 
-  const paymentStatus = params.get('payment');
-  const reference = params.get('reference');
+  // Extract reference from Paystack's URL params OR fallback to localStorage
+  const reference =
+    params.get('reference') ||
+    params.get('trxref') ||
+    localStorage.getItem('pendingPaymentReference');
 
-  if (paymentStatus !== 'success' || !reference) {
-    return;
-  }
+  if (!reference) return;
 
   if (!token) {
-    showPage('home');
-
-    alert(
-      'Payment completed. Please login again to verify your wallet payment.'
-    );
-
+    if (typeof showPage === 'function') showPage('home');
+    alert('Payment returned. Please log in to finish updating your wallet balance.');
     return;
   }
 
   try {
-    showPage('home');
+    if (typeof showPage === 'function') showPage('home');
+    if (typeof showMessage === 'function' && document.getElementById('fundMessage')) {
+      showMessage('fundMessage', 'Verifying your payment...', 'info');
+    }
 
-    const response = await fetch(
-      `${API_BASE}/payment/verify/${encodeURIComponent(reference)}`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+    const response = await fetch(`${API_BASE}/payment/verify/${encodeURIComponent(reference)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    );
+    });
 
     const data = await response.json();
 
     if (data.success) {
-      await updateWalletBalance();
+      if (typeof updateWalletBalance === 'function') {
+        await updateWalletBalance();
+      }
 
-      alert(
-        `Payment successful!\n\n₦${Number(data.amount).toLocaleString()} has been added to your wallet.`
-      );
+      const successMsg = `Payment successful!\n\n₦${Number(data.amount || 0).toLocaleString()} has been added to your wallet.`;
+
+      if (typeof showMessage === 'function' && document.getElementById('fundMessage')) {
+        showMessage('fundMessage', `✓ ${successMsg}`, 'success');
+      } else {
+        alert(successMsg);
+      }
+
+      localStorage.removeItem('pendingPaymentReference');
     } else {
-      alert(
-        data.message || 'Payment could not be verified.'
-      );
+      const errorMsg = data.message || 'Payment verification failed.';
+      if (typeof showMessage === 'function' && document.getElementById('fundMessage')) {
+        showMessage('fundMessage', errorMsg, 'error');
+      } else {
+        alert(errorMsg);
+      }
     }
   } catch (error) {
     console.error('Payment verification error:', error);
-
-    alert(
-      'Payment was completed, but verification could not be completed. Please check your transaction history.'
-    );
   } finally {
-    // Remove payment parameters from browser URL
-    window.history.replaceState(
-      {},
-      document.title,
-      window.location.pathname
-    );
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
-
 // Initial setup
 updateAuthUI();
 handlePaymentCallback();
