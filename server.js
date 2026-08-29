@@ -52,7 +52,6 @@ app.use('/api/data', dataRoutes);
 app.use('/api/utility', utilityRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/payment', paymentRoutes);
-app.use('/api/payment', paymentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

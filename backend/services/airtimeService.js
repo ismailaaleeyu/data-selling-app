@@ -1,12 +1,13 @@
 const pool = require('../config/database');
+const walletService = require('./walletService');
 const vtpassService = require('./vtpassService');
 
-class DataService {
+class AirtimeService {
 
   // ==========================================
-  // BUY DATA
+  // BUY AIRTIME
   // ==========================================
-  static async buyData(userId, phoneNumber, planId) {
+  static async buyAirtime(userId, phoneNumber, planId) {
     const connection = await pool.getConnection();
 
     let reference;
@@ -14,7 +15,6 @@ class DataService {
     let plan;
 
     try {
-
       // ----------------------------------------
       // Validate user
       // ----------------------------------------
@@ -41,17 +41,11 @@ class DataService {
       }
 
       // ----------------------------------------
-      // Get data plan
+      // Get plan
       // ----------------------------------------
       const [plans] = await connection.execute(
-        `SELECT
-           id,
-           provider,
-           name,
-           data_size,
-           validity_days,
-           price
-         FROM data_plans
+        `SELECT id, provider, amount, description
+         FROM airtime_plans
          WHERE id = ?
          AND active = TRUE`,
         [planId]
@@ -59,16 +53,16 @@ class DataService {
 
       if (plans.length === 0) {
         throw new Error(
-          'Data plan not found or inactive'
+          'Airtime plan not found or inactive'
         );
       }
 
       plan = plans[0];
 
-      amount = Number(plan.price);
+      amount = Number(plan.amount);
 
       if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error('Invalid data plan amount');
+        throw new Error('Invalid airtime amount');
       }
 
       // ----------------------------------------
@@ -79,34 +73,31 @@ class DataService {
 
       if (!serviceID) {
         throw new Error(
-          `Data provider ${plan.provider} is not supported`
+          `Airtime provider ${plan.provider} is not supported`
         );
       }
 
       // ----------------------------------------
-      // Generate reference
+      // Generate unique reference
       // ----------------------------------------
       reference =
-        `DATA-${userId}-${Date.now()}-${Math.random()
+        `AIR-${userId}-${Date.now()}-${Math.random()
           .toString(36)
           .substring(2, 8)}`;
 
       // ----------------------------------------
-      // START TRANSACTION
+      // START DATABASE TRANSACTION
       // ----------------------------------------
       await connection.beginTransaction();
 
-      // ----------------------------------------
-      // Lock wallet
-      // ----------------------------------------
-      const [lockedUsers] =
-        await connection.execute(
-          `SELECT wallet_balance
-           FROM users
-           WHERE id = ?
-           FOR UPDATE`,
-          [userId]
-        );
+      // Lock user's wallet
+      const [lockedUsers] = await connection.execute(
+        `SELECT wallet_balance
+         FROM users
+         WHERE id = ?
+         FOR UPDATE`,
+        [userId]
+      );
 
       if (lockedUsers.length === 0) {
         throw new Error('User not found');
@@ -122,18 +113,11 @@ class DataService {
       }
 
       // ----------------------------------------
-      // Create pending transaction
+      // Create pending airtime transaction
       // ----------------------------------------
       await connection.execute(
-        `INSERT INTO data_transactions
-          (
-            user_id,
-            phone_number,
-            plan_id,
-            amount,
-            status,
-            reference
-          )
+        `INSERT INTO airtime_transactions
+          (user_id, phone_number, plan_id, amount, status, reference)
          VALUES (?, ?, ?, ?, 'pending', ?)`,
         [
           userId,
@@ -149,34 +133,27 @@ class DataService {
       // ----------------------------------------
       await connection.execute(
         `UPDATE users
-         SET wallet_balance =
-             wallet_balance - ?
+         SET wallet_balance = wallet_balance - ?
          WHERE id = ?`,
         [amount, userId]
       );
 
       // ----------------------------------------
-      // Wallet transaction
+      // Record wallet debit
       // ----------------------------------------
       await connection.execute(
         `INSERT INTO wallet_transactions
-          (
-            user_id,
-            amount,
-            type,
-            description,
-            status,
-            reference
-          )
+          (user_id, amount, type, description, status, reference)
          VALUES (?, ?, 'debit', ?, 'completed', ?)`,
         [
           userId,
           amount,
-          `Data purchase: ${plan.name} to ${phone}`,
+          `Airtime purchase: ₦${amount} to ${phone}`,
           reference
         ]
       );
 
+      // Commit wallet + airtime transaction
       await connection.commit();
 
     } catch (error) {
@@ -186,7 +163,7 @@ class DataService {
       } catch (_) {}
 
       console.error(
-        'Data preparation error:',
+        'Airtime preparation error:',
         error.message
       );
 
@@ -205,19 +182,17 @@ class DataService {
     try {
 
       vtpassResponse =
-        await vtpassService.buyData({
+        await vtpassService.buyAirtime({
           serviceID:
             this.getServiceId(plan.provider),
-          phone,
-          amount,
-          variation_code:
-            this.getVariationCode(plan)
+          phone: phoneNumber,
+          amount
         });
 
     } catch (providerError) {
 
       console.error(
-        'VTpass data request failed:',
+        'VTpass request failed:',
         providerError.message
       );
 
@@ -229,12 +204,12 @@ class DataService {
       );
 
       throw new Error(
-        'Data provider failed. Your wallet has been refunded.'
+        'Airtime provider failed. Your wallet has been refunded.'
       );
     }
 
     // ==========================================
-    // PROCESS RESPONSE
+    // PROCESS VTPASS RESPONSE
     // ==========================================
 
     const vtpassCode =
@@ -256,10 +231,10 @@ class DataService {
       null;
 
     // ------------------------------------------
-    // Save provider references
+    // Save VTpass references
     // ------------------------------------------
     await pool.execute(
-      `UPDATE data_transactions
+      `UPDATE airtime_transactions
        SET vtpass_request_id = ?,
            vtpass_transaction_id = ?
        WHERE reference = ?`,
@@ -270,17 +245,16 @@ class DataService {
       ]
     );
 
-    // ==========================================
+    // ------------------------------------------
     // DELIVERED
-    // ==========================================
-
+    // ------------------------------------------
     if (
       vtpassCode === '000' &&
       providerStatus === 'delivered'
     ) {
 
       await pool.execute(
-        `UPDATE data_transactions
+        `UPDATE airtime_transactions
          SET status = 'completed'
          WHERE reference = ?`,
         [reference]
@@ -293,19 +267,16 @@ class DataService {
         providerReference:
           vtpassTransactionId || requestId,
         amount,
-        phone,
+        phone: phoneNumber,
         provider: plan.provider,
-        plan: plan.name,
-        dataSize: plan.data_size,
         message:
-          'Data purchased successfully'
+          'Airtime purchased successfully'
       };
     }
 
-    // ==========================================
+    // ------------------------------------------
     // PENDING
-    // ==========================================
-
+    // ------------------------------------------
     if (
       vtpassCode === '099' ||
       providerStatus === 'pending' ||
@@ -319,19 +290,16 @@ class DataService {
         providerReference:
           vtpassTransactionId || requestId,
         amount,
-        phone,
+        phone: phoneNumber,
         provider: plan.provider,
-        plan: plan.name,
-        dataSize: plan.data_size,
         message:
-          'Data purchase is being processed'
+          'Airtime purchase is being processed'
       };
     }
 
-    // ==========================================
+    // ------------------------------------------
     // FAILED
-    // ==========================================
-
+    // ------------------------------------------
     await this.failAndRefund(
       userId,
       amount,
@@ -346,13 +314,13 @@ class DataService {
       reference,
       amount,
       message:
-        'Data purchase failed. Your wallet has been refunded.'
+        'Airtime purchase failed. Your wallet has been refunded.'
     };
   }
 
 
   // ==========================================
-  // REFUND
+  // FAIL + REFUND
   // ==========================================
   static async failAndRefund(
     userId,
@@ -368,7 +336,7 @@ class DataService {
 
       await connection.beginTransaction();
 
-      // Lock wallet
+      // Lock the wallet
       const [users] =
         await connection.execute(
           `SELECT wallet_balance
@@ -379,12 +347,10 @@ class DataService {
         );
 
       if (users.length === 0) {
-        throw new Error(
-          'User not found during refund'
-        );
+        throw new Error('User not found during refund');
       }
 
-      // Prevent duplicate refund
+      // Check if already refunded
       const refundReference =
         `REFUND-${reference}`;
 
@@ -419,26 +385,19 @@ class DataService {
       // Record refund
       await connection.execute(
         `INSERT INTO wallet_transactions
-          (
-            user_id,
-            amount,
-            type,
-            description,
-            status,
-            reference
-          )
+          (user_id, amount, type, description, status, reference)
          VALUES (?, ?, 'credit', ?, 'completed', ?)`,
         [
           userId,
           amount,
-          `Data refund: ${reason}`,
+          `Airtime refund: ${reason}`,
           refundReference
         ]
       );
 
-      // Mark transaction failed
+      // Mark airtime failed
       await connection.execute(
-        `UPDATE data_transactions
+        `UPDATE airtime_transactions
          SET status = 'failed'
          WHERE reference = ?`,
         [reference]
@@ -458,12 +417,12 @@ class DataService {
       } catch (_) {}
 
       console.error(
-        'Data refund error:',
+        'Airtime refund error:',
         error.message
       );
 
       throw new Error(
-        'Data failed and automatic refund could not be completed.'
+        'Airtime failed and automatic refund could not be completed.'
       );
 
     } finally {
@@ -473,7 +432,7 @@ class DataService {
 
 
   // ==========================================
-  // VTPASS SERVICE ID
+  // PROVIDER MAPPING
   // ==========================================
   static getServiceId(provider) {
 
@@ -483,34 +442,15 @@ class DataService {
         .toLowerCase();
 
     const providers = {
-      mtn: 'mtn-data',
-      airtel: 'airtel-data',
-      glo: 'glo-data',
-      '9mobile': 'etisalat-data',
-      etisalat: 'etisalat-data'
+      mtn: 'mtn',
+      airtel: 'airtel',
+      glo: 'glo',
+      '9mobile': 'etisalat',
+      etisalat: 'etisalat'
     };
 
     return providers[normalized] || null;
   }
-
-
-  // ==========================================
-  // VTPASS VARIATION CODE
-  // ==========================================
-  static getVariationCode(plan) {
-
-    /*
-     * IMPORTANT:
-     * This currently assumes your database plan ID
-     * is also the VTpass variation code.
-     *
-     * We will replace this with the actual VTpass
-     * variation codes after retrieving the data
-     * catalogue from VTpass.
-     */
-
-    return String(plan.id);
-  }
 }
 
-module.exports = DataService;
+module.exports = AirtimeService;

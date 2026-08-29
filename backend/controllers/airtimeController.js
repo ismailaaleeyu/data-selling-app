@@ -1,103 +1,194 @@
 const pool = require('../config/database');
+const AirtimeService = require('../services/airtimeService');
 
 class AirtimeController {
+
+  // ==========================================
+  // GET AIRTIME PROVIDERS
+  // ==========================================
   static async getProviders(req, res) {
     try {
       const [plans] = await pool.query(
-        `SELECT DISTINCT provider FROM airtime_plans WHERE active = TRUE`,
+        `SELECT DISTINCT provider
+         FROM airtime_plans
+         WHERE active = TRUE
+         ORDER BY provider`
       );
 
-      res.json({ success: true, providers: plans.map(p => p.provider) });
+      res.json({
+        success: true,
+        providers: plans.map(plan => plan.provider)
+      });
+
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ success: false, message: 'Failed to fetch providers' });
+      console.error(
+        'Get airtime providers error:',
+        error.message
+      );
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch airtime providers'
+      });
     }
   }
 
+
+  // ==========================================
+  // GET AIRTIME PLANS
+  // ==========================================
   static async getPlans(req, res) {
     const { provider } = req.query;
 
     try {
-      let query = 'SELECT * FROM airtime_plans WHERE active = TRUE';
+      let query = `
+        SELECT
+          id,
+          provider,
+          amount,
+          description
+        FROM airtime_plans
+        WHERE active = TRUE
+      `;
+
       const params = [];
 
       if (provider) {
-        query += ' AND provider = ?';
+        query += ` AND provider = ?`;
         params.push(provider);
       }
 
-      const [plans] = await pool.query(query, params);
-      res.json({ success: true, plans });
+      query += ` ORDER BY amount ASC`;
+
+      const [plans] = await pool.query(
+        query,
+        params
+      );
+
+      res.json({
+        success: true,
+        plans
+      });
+
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ success: false, message: 'Failed to fetch plans' });
+      console.error(
+        'Get airtime plans error:',
+        error.message
+      );
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch airtime plans'
+      });
     }
   }
 
+
+  // ==========================================
+  // BUY AIRTIME
+  // ==========================================
   static async buyAirtime(req, res) {
-    const { phone_number, plan_id } = req.body;
-    const connection = await pool.getConnection();
-
     try {
-      // Get plan details
-      const [plans] = await connection.execute(
-        'SELECT * FROM airtime_plans WHERE id = ?',
-        [plan_id]
-      );
 
-      if (plans.length === 0) {
-        return res.status(404).json({ success: false, message: 'Plan not found' });
+      // Your auth middleware may expose either
+      // req.user.id or req.userId.
+      const userId =
+        req.user?.id ||
+        req.user?.userId ||
+        req.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
       }
 
-      const plan = plans[0];
+      const {
+        phone_number,
+        plan_id
+      } = req.body;
 
-      // Check user balance
-      const [users] = await connection.execute(
-        'SELECT wallet_balance FROM users WHERE id = ?',
-        [req.userId]
-      );
-
-      if (parseFloat(users[0].wallet_balance) < parseFloat(plan.amount)) {
-        return res.status(400).json({ success: false, message: 'Insufficient wallet balance' });
+      // ----------------------------------------
+      // Validate request
+      // ----------------------------------------
+      if (!phone_number) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number is required'
+        });
       }
 
-      await connection.beginTransaction();
+      if (!plan_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Airtime plan is required'
+        });
+      }
 
-      // Debit wallet
-      await connection.execute(
-        'UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?',
-        [plan.amount, req.userId]
-      );
+      // ----------------------------------------
+      // Purchase airtime
+      // ----------------------------------------
+      const result =
+        await AirtimeService.buyAirtime(
+          userId,
+          phone_number,
+          Number(plan_id)
+        );
 
-      // Record transaction
-      const reference = `AIR-${Date.now()}`;
-      await connection.execute(
-        `INSERT INTO airtime_transactions (user_id, phone_number, plan_id, amount, status, reference)
-         VALUES (?, ?, ?, ?, 'completed', ?)`,
-        [req.userId, phone_number, plan_id, plan.amount, reference]
-      );
+      return res.json(result);
 
-      // Log wallet transaction
-      await connection.execute(
-        `INSERT INTO wallet_transactions (user_id, amount, type, description, status)
-         VALUES (?, ?, 'debit', ?, 'completed')`,
-        [req.userId, plan.amount, `Airtime: ${plan.amount}N to ${phone_number}`]
-      );
-
-      await connection.commit();
-
-      res.json({ 
-        success: true, 
-        message: 'Airtime purchased successfully',
-        reference,
-        amount: plan.amount
-      });
     } catch (error) {
-      await connection.rollback();
-      console.error(error);
-      res.status(500).json({ success: false, message: 'Purchase failed' });
-    } finally {
-      connection.release();
+
+      console.error(
+        'Buy airtime controller error:',
+        error.message
+      );
+
+      // ----------------------------------------
+      // Insufficient balance / validation errors
+      // ----------------------------------------
+      if (
+        error.message ===
+        'Insufficient wallet balance'
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      if (
+        error.message.includes(
+          'valid Nigerian phone number'
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      if (
+        error.message.includes(
+          'not found'
+        )
+      ) {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      // ----------------------------------------
+      // Other errors
+      // ----------------------------------------
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          'Airtime purchase failed'
+      });
     }
   }
 }
