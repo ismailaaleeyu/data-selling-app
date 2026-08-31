@@ -199,7 +199,7 @@ const paymentRoutes =
 
 // ADMIN ROUTES
 const adminRoutes =
-  require('./routes/adminRoutes');
+  require('./backend/routes/adminRoutes');
 
 // ======================================================
 // API ROUTES
