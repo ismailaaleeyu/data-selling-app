@@ -1,63 +1,50 @@
 const jwt = require('jsonwebtoken');
 
-const adminAuth = (req, res, next) => {
+function adminAuth(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization;
 
-  const authHeader =
-    req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                message: 'Admin authentication required'
+            });
+        }
 
-  const token =
-    authHeader?.startsWith('Bearer ')
-      ? authHeader.split(' ')[1]
-      : null;
+        const token = authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: 'Admin authentication required'
-    });
-  }
+        const decoded = jwt.verify(
+            token,
+            process.env.JWT_SECRET
+        );
 
-  try {
+        // Make sure this is an admin token
+        if (
+            decoded.role !== 'admin' ||
+            !decoded.adminId
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: 'Admin access denied'
+            });
+        }
 
-    const decoded =
-      jwt.verify(
-        token,
-        process.env.JWT_SECRET
-      );
+        req.admin = decoded;
 
-    if (
-      decoded.role !== 'admin' ||
-      !decoded.adminId
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: 'Admin access denied'
-      });
+        next();
+
+    } catch (error) {
+
+        console.error(
+            'Admin authentication error:',
+            error.message
+        );
+
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid or expired admin token'
+        });
     }
-
-    req.adminId =
-      decoded.adminId;
-
-    req.adminEmail =
-      decoded.email;
-
-    req.adminRole =
-      decoded.role;
-
-    next();
-
-  } catch (error) {
-
-    console.error(
-      'Admin authentication error:',
-      error.message
-    );
-
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid or expired admin token'
-    });
-  }
-};
+}
 
 module.exports = adminAuth;
