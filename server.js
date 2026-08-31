@@ -44,6 +44,7 @@ const dataRoutes = require('./backend/routes/dataRoutes');
 const utilityRoutes = require('./backend/routes/utilityRoutes');
 const walletRoutes = require('./backend/routes/walletRoutes');
 const paymentRoutes = require('./backend/routes/paymentRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -52,6 +53,7 @@ app.use('/api/data', dataRoutes);
 app.use('/api/utility', utilityRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
