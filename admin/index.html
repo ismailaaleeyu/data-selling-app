@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+```
+<title>Admin Dashboard - Data Selling App</title>
+
+<link rel="stylesheet" href="../css/admin/admin.css">
+```
+
+</head>
+
+<body>
+
+```
+<!-- ============================= -->
+<!-- SIDEBAR -->
+<!-- ============================= -->
+
+<aside class="admin-sidebar">
+
+    <div class="admin-brand">
+        <h2>Data Selling</h2>
+        <span>Admin Panel</span>
+    </div>
+
+    <nav class="admin-nav">
+
+        <button class="nav-item active" data-section="dashboard">
+            Dashboard
+        </button>
+
+        <button class="nav-item" data-section="users">
+            Users
+        </button>
+
+        <button class="nav-item" data-section="wallet">
+            Wallet Transactions
+        </button>
+
+        <button class="nav-item" data-section="data">
+            Data Transactions
+        </button>
+
+        <button class="nav-item" data-section="airtime">
+            Airtime Transactions
+        </button>
+
+        <button class="nav-item" data-section="utility">
+            Utility Transactions
+        </button>
+
+    </nav>
+
+    <button id="logoutBtn" class="logout-btn">
+        Logout
+    </button>
+
+</aside>
+
+
+<!-- ============================= -->
+<!-- MAIN CONTENT -->
+<!-- ============================= -->
+
+<main class="admin-main">
+
+    <!-- TOP BAR -->
+
+    <header class="admin-header">
+
+        <div>
+            <h1 id="pageTitle">Dashboard</h1>
+            <p id="adminWelcome">Welcome, Administrator</p>
+        </div>
+
+        <div class="admin-profile">
+            <span id="adminName">Administrator</span>
+        </div>
+
+    </header>
+
+
+    <!-- ============================= -->
+    <!-- DASHBOARD -->
+    <!-- ============================= -->
+
+    <section id="dashboardSection" class="admin-section active">
+
+        <div class="section-heading">
+            <h2>Overview</h2>
+
+            <button id="refreshDashboardBtn" class="refresh-btn">
+                Refresh
+            </button>
+        </div>
+
+
+        <div id="dashboardMessage" class="admin-message"></div>
+
+
+        <!-- STATISTICS -->
+
+        <div class="statistics-grid">
+
+            <div class="stat-card">
+                <span class="stat-label">Total Users</span>
+                <strong id="totalUsers">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Wallet Balance</span>
+                <strong id="totalWalletBalance">₦0.00</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Wallet Transactions</span>
+                <strong id="totalWalletTransactions">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Data Transactions</span>
+                <strong id="totalDataTransactions">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Airtime Transactions</span>
+                <strong id="totalAirtimeTransactions">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Utility Transactions</span>
+                <strong id="totalUtilityTransactions">0</strong>
+            </div>
+
+            <div class="stat-card sales-card">
+                <span class="stat-label">Data Sales</span>
+                <strong id="totalDataSales">₦0.00</strong>
+            </div>
+
+            <div class="stat-card sales-card">
+                <span class="stat-label">Airtime Sales</span>
+                <strong id="totalAirtimeSales">₦0.00</strong>
+            </div>
+
+            <div class="stat-card sales-card">
+                <span class="stat-label">Utility Sales</span>
+                <strong id="totalUtilitySales">₦0.00</strong>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ============================= -->
+    <!-- USERS -->
+    <!-- ============================= -->
+
+    <section id="usersSection" class="admin-section">
+
+        <div class="section-heading">
+            <h2>Users</h2>
+
+            <button id="refreshUsersBtn" class="refresh-btn">
+                Refresh
+            </button>
+        </div>
+
+        <div id="usersMessage" class="admin-message"></div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Wallet Balance</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+
+                <tbody id="usersTableBody">
+                    <tr>
+                        <td colspan="6">
+                            No users loaded.
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+    <!-- ============================= -->
+    <!-- WALLET TRANSACTIONS -->
+    <!-- ============================= -->
+
+    <section id="walletSection" class="admin-section">
+
+        <div class="section-heading">
+            <h2>Wallet Transactions</h2>
+
+            <button id="refreshWalletBtn" class="refresh-btn">
+                Refresh
+            </button>
+        </div>
+
+        <div id="walletMessage" class="admin-message"></div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Reference</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+
+                <tbody id="walletTableBody">
+                    <tr>
+                        <td colspan="7">
+                            No transactions loaded.
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+    <!-- ============================= -->
+    <!-- DATA TRANSACTIONS -->
+    <!-- ============================= -->
+
+    <section id="dataSection" class="admin-section">
+
+        <div class="section-heading">
+            <h2>Data Transactions</h2>
+
+            <button id="refreshDataBtn" class="refresh-btn">
+                Refresh
+            </button>
+        </div>
+
+        <div id="dataMessage" class="admin-message"></div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Phone</th>
+                        <th>Plan</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+
+                <tbody id="dataTableBody">
+                    <tr>
+                        <td colspan="7">
+                            No transactions loaded.
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+    <!-- ============================= -->
+    <!-- AIRTIME TRANSACTIONS -->
+    <!-- ============================= -->
+
+    <section id="airtimeSection" class="admin-section">
+
+        <div class="section-heading">
+            <h2>Airtime Transactions</h2>
+
+            <button id="refreshAirtimeBtn" class="refresh-btn">
+                Refresh
+            </button>
+        </div>
+
+        <div id="airtimeMessage" class="admin-message"></div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Phone</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Reference</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+
+                <tbody id="airtimeTableBody">
+                    <tr>
+                        <td colspan="7">
+                            No transactions loaded.
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+    <!-- ============================= -->
+    <!-- UTILITY TRANSACTIONS -->
+    <!-- ============================= -->
+
+    <section id="utilitySection" class="admin-section">
+
+        <div class="section-heading">
+            <h2>Utility Transactions</h2>
+
+            <button id="refreshUtilityBtn" class="refresh-btn">
+                Refresh
+            </button>
+        </div>
+
+        <div id="utilityMessage" class="admin-message"></div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Reference</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+
+                <tbody id="utilityTableBody">
+                    <tr>
+                        <td colspan="6">
+                            No transactions loaded.
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script src="../js/admin/admin.js"></script>
+```
+
+</body>
+</html>
