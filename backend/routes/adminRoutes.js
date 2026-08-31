@@ -10,6 +10,21 @@ const router = express.Router();
 
 
 // ==================================================
+// PROTECTED ADMIN ROOT ROUTE
+// ==================================================
+
+router.get('/', adminAuth, (req, res) => {
+
+    res.json({
+        success: true,
+        message: 'Admin API is working',
+        admin: req.admin || null
+    });
+
+});
+
+
+// ==================================================
 // PUBLIC ADMIN ROUTES
 // ==================================================
 
@@ -67,6 +82,5 @@ router.get(
     adminAuth,
     AdminController.getUtilityTransactions
 );
-
 
 module.exports = router;
