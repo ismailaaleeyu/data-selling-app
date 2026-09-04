@@ -1,67 +1,55 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 require('dotenv').config();
-
-// ======================================================
-// INITIALIZE APP
-// ======================================================
 
 const app = express();
 
 // ======================================================
 // SECURITY / MIDDLEWARE
 // ======================================================
-
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-
-        scriptSrc: ["'self'"],
-
-        scriptSrcAttr: [
-          "'self'",
-          "'unsafe-inline'"
-        ],
-
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "https:"
-        ],
-
-        imgSrc: [
-          "'self'",
-          "data:"
-        ],
-
-        fontSrc: [
-          "'self'",
-          "https:",
-          "data:"
-        ],
-
-        connectSrc: [
-          "'self'",
-          "http://localhost:*"
-        ],
-
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+        imgSrc: ["'self'", "data:"],
+        fontSrc: ["'self'", "https:", "data:"],
+        connectSrc: ["'self'", "http://localhost:*"],
         formAction: ["'self'"],
-
         frameAncestors: ["'self'"],
-
         baseUri: ["'self'"],
-
         objectSrc: ["'none'"]
       }
     }
   })
 );
 
-// CORS
 app.use(cors());
+
+// ======================================================
+// STATIC FILES
+// ======================================================
+// Serve everything in the project root (index.html, css, js, admin, etc.)
+app.use(express.static(path.join(__dirname)));
+
+// Explicitly serve JS files from /js and /admin/js
+app.use('/js', express.static(path.join(__dirname, 'js')));
+app.use('/admin/js', express.static(path.join(__dirname, 'admin', 'js')));
+
+// ======================================================
+// START SERVER
+// ======================================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+
+
+
 
 // ======================================================
 // CUSTOM JSON BODY PARSER
@@ -167,13 +155,6 @@ app.use(
   })
 );
 
-// ======================================================
-// STATIC FILES
-// ======================================================
-
-app.use(
-  express.static('.')
-);
 
 // ======================================================
 // IMPORT ROUTES
@@ -326,77 +307,3 @@ app.use(
   }
 );
 
-// ======================================================
-// START SERVER
-// ======================================================
-
-const PORT =
-  process.env.PORT || 3000;
-
-app.listen(
-  PORT,
-  () => {
-
-    console.log('');
-    console.log(
-      '=========================================='
-    );
-
-    console.log(
-      '       DATAHUB SERVER STARTED'
-    );
-
-    console.log(
-      '=========================================='
-    );
-
-    console.log(
-      `Server: http://localhost:${PORT}`
-    );
-
-    console.log(
-      `Health: http://localhost:${PORT}/api/health`
-    );
-
-    console.log(
-      `Admin:  http://localhost:${PORT}/api/admin`
-    );
-
-    console.log(
-      '=========================================='
-    );
-
-    console.log(
-      '✓ Authentication routes loaded'
-    );
-
-    console.log(
-      '✓ Airtime routes loaded'
-    );
-
-    console.log(
-      '✓ Data routes loaded'
-    );
-
-    console.log(
-      '✓ Utility routes loaded'
-    );
-
-    console.log(
-      '✓ Wallet routes loaded'
-    );
-
-    console.log(
-      '✓ Payment routes loaded'
-    );
-
-    console.log(
-      '✓ Admin routes loaded'
-    );
-
-    console.log(
-      '=========================================='
-    );
-
-  }
-);
