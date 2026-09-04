@@ -59,6 +59,13 @@ app.use(
     }
   })
 );
+// Preserve the raw Paystack payload for signature verification.
+app.use('/api/payment/webhook', express.raw({
+  type: 'application/json',
+  verify: (req, res, buffer) => {
+    req.rawBody = buffer;
+  }
+}));
 
 // CORS
 app.use(cors());
@@ -78,7 +85,6 @@ app.use(cors());
 // {\"email\":\"test@example.com\",\"password\":\"123\"}
 //
 // ======================================================
-
 app.use((req, res, next) => {
 
   // Only process JSON requests

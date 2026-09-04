@@ -1,23 +1,13 @@
 // backend/routes/paymentRoutes.js
 
 const express = require('express');
-const router = express.Router();
-
-const paymentController = require('../controllers/paymentController');
+const PaymentController = require('../controllers/paymentController');
 const authMiddleware = require('../middleware/auth');
 
-// POST /api/payment/initialize
-router.post(
-  '/initialize',
-  authMiddleware,
-  paymentController.initializePayment
-);
+const router = express.Router();
 
-// GET /api/payment/verify/:reference
-router.get(
-  '/verify/:reference',
-  authMiddleware,
-  paymentController.verifyPayment
-);
+router.post('/initialize', authMiddleware, PaymentController.initializePayment);
+router.get('/verify/:reference', authMiddleware, PaymentController.verifyPayment);
+router.post('/webhook', PaymentController.handleWebhook);
 
 module.exports = router;
